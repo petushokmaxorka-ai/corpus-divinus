@@ -1,0 +1,45 @@
+# АВТОСБОРКА САЙТА (Actions → Pages)
+#
+# ВНИМАНИЕ: токен агента не имеет workflow-scope, поэтому файл лежит здесь.
+# ОДИН РУЧНОЙ ШАГ: перемести этот файл в .github/workflows/build.yml
+# (в веб-интерфейсе: открыть файл → карандаш → переименовать путь на ../.github/workflows/build.yml).
+# Затем: Settings → Pages → Source: "GitHub Actions". Всё, сайт собирается сам при каждом пуше.
+
+name: build-corpus
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch sources (Q1)
+        run: bash tools/fetch_sources.sh
+      - name: Build Quran
+        run: python3 tools/build_quran.py --src quran_uthmani.txt --out .
+      - name: Verify integrity
+        run: python3 tools/verify.py quran_uthmani.txt 6236
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
